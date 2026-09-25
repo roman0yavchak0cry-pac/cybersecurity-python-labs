@@ -152,8 +152,6 @@ def run_task3():
         ("vendor_rep", "TemporaryContractAccess!88"),
         ("soc_specialist", "MonitoringAlertQueue#55"),
         ("guest_auditor", "ExternalVerificationKey!33"),
-        ("", "Extr3meLySecurePassword#2026"),
-        ("user_no_password", ""),
     )
 
     try:
