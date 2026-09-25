@@ -15,7 +15,7 @@ from shared.student import STUDENT_NAME, VARIANT_NUMBER
 
 def check_password_strength(password, min_len, forbidden, all_passwords):
     """Визначає категорію надійності пароля."""
-    # Базова перевірка на заборонені значення (Fail-Secure)
+
     if password in forbidden or len(password) < min_len:
         return "Заборонений"
 
