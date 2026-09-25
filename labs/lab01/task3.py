@@ -1,4 +1,4 @@
-"""Завдання 3: Хешування паролів, збереження у CSV та логи у JSON"""
+"""Завдання 3: Хешування паролів, збереження у CSV та логи у JSON."""
 
 import csv
 import functools
@@ -43,7 +43,6 @@ def log_event(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        # Витягуємо логін із позиційних або іменованих аргументів
         username = (
             args[0]
             if args
@@ -85,28 +84,38 @@ def log_event(func):
 
 
 def create_user(username, password):
+    """Валідує дані та створює запис користувача."""
+    if not username or not str(username).strip():
+        raise ValueError("Ім'я користувача (логін) не може бути порожнім")
+
     pwd_hash = generate_hash(password, SALT)
     return username, pwd_hash
 
 
 def create_users(users_list):
+    """Записує користувачів у CSV, відловлюючи некоректні записи."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with CSV_PATH.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["username", "password_hash"])
+
         for user, pwd in users_list:
-            _, pwd_hash = create_user(user, pwd)
-            writer.writerow([user, pwd_hash])
+            try:
+                valid_user, pwd_hash = create_user(user, pwd)
+                writer.writerow([valid_user, pwd_hash])
+            except (ValueError, ValidationError) as err:
+                print(f" [ВІДХИЛЕНО ПРИ РЕЄСТРАЦІЇ] Логін: '{user}' -> {err}")
 
 
 def read_users_db():
+    """Зчитує користувачів із CSV-файлу."""
     if not CSV_PATH.exists():
         raise FileNotFoundError(f"Файл {CSV_PATH} не знайдено")
 
     db = []
     with CSV_PATH.open("r", encoding="utf-8") as f:
         reader = csv.reader(f)
-        next(reader, None)  # Пропускаємо шапку
+        next(reader, None)
         for row in reader:
             if len(row) >= 2:
                 db.append((row[0], row[1]))
@@ -142,16 +151,16 @@ def run_task3():
         ("incident_cmd", "ThreatResponseTrigger#44"),
         ("vendor_rep", "TemporaryContractAccess!88"),
         ("soc_specialist", "MonitoringAlertQueue#55"),
-        ("cloud_engineer", "InfrastructureTerraform!01"),
-        ("crypto_lead", "EllipticCurveCryptography#7"),
         ("guest_auditor", "ExternalVerificationKey!33"),
+        ("", "Extr3meLySecurePassword#2026"),
+        ("user_no_password", ""),
     )
 
     try:
-        print("\nСтворюємо базу у CSV...")
+        print("\nСтворюємо базу у CSV (обробка списку користувачів)...")
         create_users(test_accounts)
 
-        print("\nЗаписи у базі даних:")
+        print("\nЗаписи, успішно додані до бази даних:")
         users_db = read_users_db()
         for i, (u, h) in enumerate(users_db, 1):
             print(f"{i:<2} | {u:<16} | {h[:20]}...{h[-8:]}")
@@ -166,11 +175,22 @@ def run_task3():
         res3 = login("unknown_user", "SomeSecretKey#2026")
         print(f" - Вхід невідомого юзера: {res3}")
 
-        print("\nТест винятку валідації:")
+        print("\nТест винятку валідації (короткий пароль):")
         try:
             login("analyst_01", "123")
         except ValidationError as err:
             print(f" - Перехоплено ValidationError: {err}")
+
+        print("\nТест винятків ValueError (порожні параметри входу):")
+        try:
+            login("", "Extr3meLySecurePassword#2026")
+        except ValueError as err:
+            print(f" - Спроба входу без логіна: {err}")
+
+        try:
+            login("admin_sec", "")
+        except ValueError as err:
+            print(f" - Спроба входу без пароля: {err}")
 
     except (
         FileNotFoundError,
@@ -179,7 +199,7 @@ def run_task3():
         ValidationError,
         ValueError,
     ) as e:
-        print(f"Помилка: {e}")
+        print(f"Критична помилка: {e}")
 
 
 if __name__ == "__main__":
