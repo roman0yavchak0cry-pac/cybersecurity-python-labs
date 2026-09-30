@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import csv
 import json
@@ -10,22 +8,21 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
-# Створення виділеного логера модуля замість root logger (правило LOG015)
 logger = logging.getLogger(__name__)
 
-IPV4_PATTERN: re.Pattern[str] = re.compile(
-    r"^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
+# Регулярні вирази для перевірки коректності хоста (IP або домен)
+IP_REGEX = re.compile(
+    r"^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$"
 )
-DOMAIN_PATTERN: re.Pattern[str] = re.compile(
-    r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
+DOMAIN_REGEX = re.compile(
+    r"^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
 )
 
 
-@dataclass(frozen=True)
+@dataclass
 class ScanResult:
-    """Результат аудиту доступності мережевого вузла."""
+    """Клас для збереження результату сканування порту."""
 
     host: str
     port: int
@@ -36,20 +33,20 @@ class ScanResult:
 
 
 def validate_host(host: str) -> bool:
-    """Перевірка коректності IP-адреси або імені домену."""
-    return bool(IPV4_PATTERN.match(host) or DOMAIN_PATTERN.match(host))
+    """Перевірка чи передано валідний IP або коректний домен."""
+    return bool(IP_REGEX.match(host) or DOMAIN_REGEX.match(host))
 
 
-def probe_service(host: str, port: int, timeout: float) -> tuple[str, str, str]:
-    """Перевірка доступності порту через TCP-з'єднання."""
-    start_time = time.perf_counter()
+def check_port(host: str, port: int, timeout: float) -> tuple[str, str, str]:
+    """Спроба відкрити TCP з'єднання на вказаний порт."""
+    start = time.perf_counter()
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
 
     try:
         sock.connect((host, port))
-        elapsed = (time.perf_counter() - start_time) * 1000
-        return "ONLINE", f"{elapsed:.1f} ms", "OK"
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        return "ONLINE", f"{elapsed_ms:.1f} ms", "OK"
     except TimeoutError:
         return "OFFLINE", "TIMEOUT", "Connection timed out"
     except ConnectionRefusedError:
@@ -60,78 +57,88 @@ def probe_service(host: str, port: int, timeout: float) -> tuple[str, str, str]:
         sock.close()
 
 
-def load_targets(filepath: Path) -> list[dict[str, Any]]:
+def load_targets(filepath: Path) -> list[dict]:
     """Зчитування списку цілей із файлу JSON або CSV."""
     if not filepath.exists():
-        raise FileNotFoundError(f"Файл конфігурації цілей не знайдено: {filepath}")
+        raise FileNotFoundError(f"Файл не знайдено: {filepath}")
 
-    if filepath.suffix.lower() == ".json":
+    ext = filepath.suffix.lower()
+
+    if ext == ".json":
         with filepath.open("r", encoding="utf-8") as f:
             data = json.load(f)
             if not isinstance(data, list):
-                # Використання TypeError замість ValueError (правило TRY004)
-                raise TypeError("JSON має містити кореневий масив об'єктів.")
+                raise TypeError("JSON файл повинен містити список об'єктів")
             return data
 
-    if filepath.suffix.lower() == ".csv":
+    if ext == ".csv":
+        targets = []
         with filepath.open("r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            return [
-                {
-                    "host": row["host"],
-                    "port": int(row["port"]),
-                    "service": row.get("service", "UNKNOWN"),
-                }
-                for row in reader
-            ]
+            for row in reader:
+                targets.append(
+                    {
+                        "host": row["host"],
+                        "port": int(row["port"]),
+                        "service": row.get("service", "UNKNOWN"),
+                    }
+                )
+        return targets
 
-    raise ValueError(f"Непідтримуваний формат файлу: {filepath.suffix}")
+    raise ValueError(f"Непідтримуваний формат файлу: {ext}")
 
 
-def export_csv(results: list[ScanResult], output_path: Path) -> None:
-    """Збереження результатів сканування у CSV-файл."""
+def save_results_to_csv(results: list[ScanResult], output_path: Path) -> None:
+    """Збереження результатів перевірки у файл CSV."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Host", "Port", "Service", "Status", "ResponseTime", "Notes"])
-        for r in results:
+        for item in results:
             writer.writerow(
-                [r.host, r.port, r.service, r.status, r.response_time, r.notes]
+                [
+                    item.host,
+                    item.port,
+                    item.service,
+                    item.status,
+                    item.response_time,
+                    item.notes,
+                ]
             )
 
 
-def parse_arguments() -> argparse.Namespace:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="CLI-утиліта аудиту доступності мережевих сервісів та портів (Варіант 5)"
+        description="Сканер доступності мережевих сервісів та перевірка портів (Варіант 5)"
     )
     parser.add_argument(
         "--targets",
         type=Path,
         required=True,
-        help="Шлях до файлу зі списком вузлів (JSON або CSV)",
+        help="Шлях до файлу зі списком хостів (JSON або CSV)",
     )
     parser.add_argument(
         "--timeout",
         type=float,
         default=2.0,
-        help="Таймаут очікування відповіді у секундах (за замовчуванням: 2.0)",
+        help="Таймаут з'єднання у секундах (за замовчуванням 2.0)",
     )
     parser.add_argument(
         "--out-csv",
         type=Path,
         default=Path("labs/lab02/data/scan_results.csv"),
-        help="Шлях для збереження підсумкового CSV-звіту",
+        help="Шлях для збереження вихідного CSV-звіту",
     )
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Увімкнути розширене логування рівня DEBUG",
+        help="Детальний режим виводу (DEBUG)",
     )
     return parser.parse_args()
 
 
 def main() -> None:
-    args = parse_arguments()
+    args = parse_args()
 
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(
@@ -144,10 +151,9 @@ def main() -> None:
     )
 
     try:
-        raw_targets = load_targets(args.targets)
+        targets = load_targets(args.targets)
     except (json.JSONDecodeError, csv.Error, OSError, TypeError, ValueError) as err:
-        # Уникнення перехоплення сліпого винятку Exception (правило BLE001)
-        logger.error("Помилка завантаження файлу цілей: %s", err)
+        logger.error("Помилка при читанні цілей: %s", err)
         sys.exit(1)
 
     results: list[ScanResult] = []
@@ -158,17 +164,17 @@ def main() -> None:
     )
     print("-" * 65)
 
-    for item in raw_targets:
+    for item in targets:
         host = str(item.get("host", "")).strip()
         port = int(item.get("port", 0))
         service = str(item.get("service", "UNKNOWN")).strip()
 
         if not validate_host(host):
-            logger.warning("Невалідний синтаксис хоста: %s. Пропуск.", host)
+            logger.warning("Невалідний хост: %s. Пропускаємо.", host)
             continue
 
-        status, resp_time, notes = probe_service(host, port, args.timeout)
-        result = ScanResult(
+        status, resp_time, notes = check_port(host, port, args.timeout)
+        res = ScanResult(
             host=host,
             port=port,
             service=service,
@@ -176,11 +182,11 @@ def main() -> None:
             response_time=resp_time,
             notes=notes,
         )
-        results.append(result)
+        results.append(res)
 
         print(
-            f"{result.host:<16} {result.port:<6} {result.service:<8} "
-            f"{result.status:<8} {result.response_time:<14} {result.notes}"
+            f"{res.host:<16} {res.port:<6} {res.service:<8} "
+            f"{res.status:<8} {res.response_time:<14} {res.notes}"
         )
 
     total = len(results)
@@ -196,10 +202,10 @@ def main() -> None:
     print(f"Offline       : {offline_count} ({offline_pct:.1f}%)\n")
 
     try:
-        export_csv(results, args.out_csv)
+        save_results_to_csv(results, args.out_csv)
         logger.info("Detailed scan report saved to %s", args.out_csv)
     except OSError as err:
-        logger.error("Не вдалося зберегти звіт у CSV: %s", err)
+        logger.error("Не вдалося записати звіт у CSV: %s", err)
 
 
 if __name__ == "__main__":

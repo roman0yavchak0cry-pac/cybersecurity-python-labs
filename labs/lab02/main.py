@@ -1,14 +1,8 @@
-from __future__ import annotations
-
 import argparse
 import sys
 
-from labs.lab02.task1 import (
-    Admin,
-    AuditLog,
-    User,
-    UserAccount,
-)
+from labs.lab02.task1 import Admin, AuditLog, User, UserAccount
+from labs.lab02.task2 import main as run_task2
 
 
 def run_demo() -> None:
@@ -78,7 +72,8 @@ def run_demo() -> None:
     print("\n[6] Перевірка магічних методів __getitem__/__setitem__:")
     print(f"  account['user']: {account['user']}")
     try:
-        _ = account["__password_hash"]
+        secret = account["__password_hash"]
+        print(secret)
     except KeyError as e:
         print(
             f"  [Захист приватних даних]: Спроба отримати хеш повернула KeyError: {e}"
@@ -93,26 +88,23 @@ def main() -> None:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # Підкоманда demo
+    # Підкоманда demo (Завдання 1)
     subparsers.add_parser("demo", help="Запустити демонстрацію Завдання 1 (ООП)")
 
-    # Підкоманда analyze
+    # Підкоманда analyze (Завдання 2)
     subparsers.add_parser(
         "analyze", help="Запустити CLI-утиліту за варіантом (Завдання 2)"
     )
 
-    # Якщо викликано analyze з додатковими аргументами для task2
-    if len(sys.argv) > 1 and sys.argv[1] == "analyze":
-        from labs.lab02 import task2
+    # parse_known_args відокремлює 'demo'/'analyze' від специфічних аргументів task2
+    args, extra_args = parser.parse_known_args()
 
-        # Перенаправляємо sys.argv безпосередньо у task2
-        sys.argv = [sys.argv[0]] + sys.argv[2:]
-        task2.main()
-        return
-
-    args = parser.parse_args()
     if args.command == "demo":
         run_demo()
+    elif args.command == "analyze":
+        # Передаємо залишкові аргументи безпосередньо у task2
+        sys.argv = [sys.argv[0]] + extra_args
+        run_task2()
 
 
 if __name__ == "__main__":
