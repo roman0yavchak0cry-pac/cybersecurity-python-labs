@@ -139,7 +139,9 @@ def main() -> None:
         format="[%(levelname)s] %(message)s",
     )
 
-    logger.info("Starting service availability scan from target list %s...", args.targets)
+    logger.info(
+        "Starting service availability scan from target list %s...", args.targets
+    )
 
     try:
         raw_targets = load_targets(args.targets)

@@ -43,11 +43,7 @@ def log_event(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        username = (
-            args[0]
-            if args
-            else kwargs.get("username", "unknown")
-        )
+        username = args[0] if args else kwargs.get("username", "unknown")
         status = "failure"
 
         try:
@@ -61,9 +57,7 @@ def log_event(func):
                 "event": "login",
                 "user": str(username),
                 "result": status,
-                "timestamp": datetime.now(timezone.utc).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
                 "args": [str(a) for a in args],
                 "kwargs": {k: str(v) for k, v in kwargs.items()},
             }
