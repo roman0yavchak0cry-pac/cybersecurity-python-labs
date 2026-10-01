@@ -240,14 +240,13 @@ class UserAccount:
 
 
 if __name__ == "__main__":
-    # Швидкий тест працездатності (для перевірки студентом під час розробки)
-    test_user = User("stud_vanya", "vanya.test@lpnu.ua")
+    test_user = User("sec_analyst", "analyst@corp.ua")
     test_user.set_password("SecurePass123!")
     account = UserAccount(test_user)
 
     print(
         "Спроба входу з правильним паролем:",
-        account.login("stud_vanya", "SecurePass123!", "192.168.1.10"),
+        account.login("sec_analyst", "SecurePass123!", "192.168.1.10"),
     )
     print("Сесія активна:", account.is_authenticated())
     print("Логи аудиту:", account["audit_log"].show_all())
