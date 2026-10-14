@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 import argparse
+from collections import Counter
 import csv
 import json
 import logging
+from pathlib import Path
 import re
 import socket
 import sys
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +23,9 @@ DOMAIN_REGEX = re.compile(
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ScanResult:
-    """Клас для збереження результату сканування порту."""
+    """Незмінний результат сканування порту."""
 
     host: str
     port: int
@@ -33,16 +36,20 @@ class ScanResult:
 
 
 def validate_host(host: str) -> bool:
-    """Перевірка чи передано валідний IP або коректний домен."""
+    """Перевірка валідності хоста (IPv4, FQDN-домен або localhost)."""
+    if host.lower() == "localhost":
+        return True
     return bool(IP_REGEX.match(host) or DOMAIN_REGEX.match(host))
 
 
 def check_port(host: str, port: int, timeout: float) -> tuple[str, str, str]:
-    """Спроба відкрити TCP з'єднання на вказаний порт."""
+    """Спроба відкрити TCP-з'єднання на заданий порт."""
+    if not (1 <= port <= 65535):
+        return "OFFLINE", "INVALID_PORT", f"Port {port} is out of range (1-65535)"
+
     start = time.perf_counter()
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(timeout)
-
     try:
         sock.connect((host, port))
         elapsed_ms = (time.perf_counter() - start) * 1000
@@ -51,7 +58,7 @@ def check_port(host: str, port: int, timeout: float) -> tuple[str, str, str]:
         return "OFFLINE", "TIMEOUT", "Connection timed out"
     except ConnectionRefusedError:
         return "OFFLINE", "REFUSED", "Port is closed / connection refused"
-    except OSError as err:
+    except (OSError, OverflowError) as err:
         return "OFFLINE", "ERROR", f"Network error: {err}"
     finally:
         sock.close()
@@ -72,7 +79,7 @@ def load_targets(filepath: Path) -> list[dict]:
             return data
 
     if ext == ".csv":
-        targets = []
+        targets: list[dict] = []
         with filepath.open("r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
@@ -115,24 +122,24 @@ def parse_args() -> argparse.Namespace:
         "--targets",
         type=Path,
         required=True,
-        help="Шлях до файлу зі списком хостів (JSON або CSV)",
+        help="Шлях до файлу цілей (JSON або CSV)",
     )
     parser.add_argument(
         "--timeout",
         type=float,
         default=2.0,
-        help="Таймаут з'єднання у секундах (за замовчуванням 2.0)",
+        help="Таймаут TCP з'єднання в секундах (за замовчуванням: 2.0)",
     )
     parser.add_argument(
         "--out-csv",
         type=Path,
         default=Path("labs/lab02/data/scan_results.csv"),
-        help="Шлях для збереження вихідного CSV-звіту",
+        help="Шлях для експорту CSV-звіту",
     )
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Детальний режим виводу (DEBUG)",
+        help="Детальний режим виводу логів (DEBUG)",
     )
     return parser.parse_args()
 
@@ -141,28 +148,20 @@ def main() -> None:
     args = parse_args()
 
     log_level = logging.DEBUG if args.verbose else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format="[%(levelname)s] %(message)s",
-    )
+    logging.basicConfig(level=log_level, format="[%(levelname)s] %(message)s")
 
-    logger.info(
-        "Starting service availability scan from target list %s...", args.targets
-    )
+    logger.info("Starting service availability scan from target list %s...", args.targets)
 
     try:
         targets = load_targets(args.targets)
     except (json.JSONDecodeError, csv.Error, OSError, TypeError, ValueError) as err:
-        logger.error("Помилка при читанні цілей: %s", err)
+        logger.error("Помилка читання цілей: %s", err)
         sys.exit(1)
 
     results: list[ScanResult] = []
-
-    print(
-        f"{'Target Host':<16} {'Port':<6} {'Service':<8} "
-        f"{'Status':<8} {'Response Time':<14} Notes"
-    )
-    print("-" * 65)
+    
+    print(f"{'Target Host':<24} {'Port':<6} {'Service':<8} {'Status':<8} {'Response Time':<14} Notes")
+    print("-" * 75)
 
     for item in targets:
         host = str(item.get("host", "")).strip()
@@ -183,15 +182,13 @@ def main() -> None:
             notes=notes,
         )
         results.append(res)
-
-        print(
-            f"{res.host:<16} {res.port:<6} {res.service:<8} "
-            f"{res.status:<8} {res.response_time:<14} {res.notes}"
-        )
+        print(f"{res.host:<24} {res.port:<6} {res.service:<8} {res.status:<8} {res.response_time:<14} {res.notes}")
 
     total = len(results)
-    online_count = sum(1 for r in results if r.status == "ONLINE")
-    offline_count = total - online_count
+    # Застосування collections.Counter для статистики
+    status_counter = Counter(r.status for r in results)
+    online_count = status_counter["ONLINE"]
+    offline_count = status_counter["OFFLINE"]
 
     online_pct = (online_count / total * 100) if total > 0 else 0.0
     offline_pct = (offline_count / total * 100) if total > 0 else 0.0
@@ -205,7 +202,7 @@ def main() -> None:
         save_results_to_csv(results, args.out_csv)
         logger.info("Detailed scan report saved to %s", args.out_csv)
     except OSError as err:
-        logger.error("Не вдалося записати звіт у CSV: %s", err)
+        logger.error("Не вдалося зберегти CSV звіт: %s", err)
 
 
 if __name__ == "__main__":
