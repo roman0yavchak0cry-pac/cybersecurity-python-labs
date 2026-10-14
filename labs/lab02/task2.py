@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
 import csv
 import json
 import logging
-from pathlib import Path
 import re
 import socket
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
