@@ -1,9 +1,10 @@
 Host,Port,Service,Status,ResponseTime,Notes
 127.0.0.1,22,UNKNOWN,OFFLINE,TIMEOUT,Connection timed out
 127.0.0.1,80,UNKNOWN,OFFLINE,TIMEOUT,Connection timed out
+localhost,443,UNKNOWN,OFFLINE,TIMEOUT,Connection timed out
 192.0.2.10,80,UNKNOWN,OFFLINE,TIMEOUT,Connection timed out
 198.51.100.20,443,UNKNOWN,OFFLINE,TIMEOUT,Connection timed out
 203.0.113.30,22,UNKNOWN,OFFLINE,TIMEOUT,Connection timed out
 service.example.invalid,8080,UNKNOWN,OFFLINE,ERROR,Network error: [Errno 11001] getaddrinfo failed
 db.example.invalid,5432,UNKNOWN,OFFLINE,ERROR,Network error: [Errno 11001] getaddrinfo failed
-api.example.invalid,70000,UNKNOWN,OFFLINE,ERROR,Network error: [Errno 11001] getaddrinfo failed
+api.example.invalid,70000,UNKNOWN,OFFLINE,INVALID_PORT,Port 70000 is out of range (1-65535)
