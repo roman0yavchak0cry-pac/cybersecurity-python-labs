@@ -60,7 +60,7 @@ class User:
         )
 
     def check_password(self, password: str) -> bool:
-        """Безпечна перевірка хешу пароля без витоку за часом (timing attack)."""
+        """Безпечна перевірка пароля із захистом від Timing Attacks."""
         if self.__password_hash is None or self.__password_salt is None:
             return False
         candidate = hashlib.pbkdf2_hmac(
@@ -76,7 +76,10 @@ class User:
 
     def __str__(self) -> str:
         status = "Active" if self.active else "Inactive"
-        return f"User(username='{self.username}', email='{self.email}', role='{self.role}', status='{status}')"
+        return (
+            f"User(username='{self.username}', email='{self.email}', "
+            f"role='{self.role}', status='{status}')"
+        )
 
 
 class Admin(User):
@@ -90,10 +93,8 @@ class Admin(User):
         active: bool = True,
     ) -> None:
         super().__init__(username=username, email=email, role="admin", active=active)
-        # Уникаємо використання mutable об'єкта за замовчуванням
-        self.permissions: set[str] = (
-            set(permissions) if permissions is not None else set()
-        )
+        # Уникаємо mutable default argument (множина копіюється або створюється порожня)
+        self.permissions: set[str] = set(permissions) if permissions is not None else set()
 
     def grant_permission(self, permission: str) -> None:
         self.permissions.add(permission)
@@ -111,7 +112,7 @@ class Admin(User):
 
 
 class Session:
-    """Управління сесією користувача."""
+    """Керування сесією з тайм-зоною UTC."""
 
     def __init__(
         self,
@@ -138,7 +139,7 @@ class Session:
 
 @dataclass(frozen=True)
 class AuditRecord:
-    """Незмінний запис аудиту (frozen dataclass)."""
+    """Незмінний запис аудиту (DTO)."""
 
     timestamp: datetime
     username: str
@@ -165,7 +166,7 @@ class AuditLog:
 
 
 class UserAccount:
-    """Обліковий запис (приклад композиції Has-A: об'єднує User, Session та AuditLog)."""
+    """Композиція (Has-A): об'єднує User, Session та AuditLog."""
 
     def __init__(
         self,
@@ -206,7 +207,7 @@ class UserAccount:
     def logout(self) -> None:
         if self._session is not None:
             self._session = None
-        self._audit_log.add_log(self._user.username, "logout")
+            self._audit_log.add_log(self._user.username, "logout")
 
     def __getitem__(self, key: str) -> Any:
         if key == "user":
@@ -225,15 +226,11 @@ class UserAccount:
             self._user = value
         elif key == "session":
             if value is not None and not isinstance(value, Session):
-                raise TypeError(
-                    "Значення для 'session' має бути екземпляром Session або None."
-                )
+                raise TypeError("Значення для 'session' має бути екземпляром Session або None.")
             self._session = value
         elif key == "audit_log":
             if not isinstance(value, AuditLog):
-                raise TypeError(
-                    "Значення для 'audit_log' має бути екземпляром AuditLog."
-                )
+                raise TypeError("Значення для 'audit_log' має бути екземпляром AuditLog.")
             self._audit_log = value
         else:
             raise KeyError(f"Зміна поля '{key}' заборонена або ключ некоректний.")
