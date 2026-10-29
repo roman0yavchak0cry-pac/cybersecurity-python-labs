@@ -5,7 +5,7 @@ import hmac
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 # Константи безпеки та налаштувань сесії
@@ -95,6 +95,7 @@ class Admin(User):
         super().__init__(username=username, email=email, role="admin", active=active)
         # Уникаємо mutable default argument (множина копіюється або створюється порожня)
         self.permissions: set[str] = set(permissions) if permissions is not None else set()
+        
 
     def grant_permission(self, permission: str) -> None:
         self.permissions.add(permission)
@@ -120,20 +121,20 @@ class Session:
         login_time: datetime | None = None,
         last_activity: datetime | None = None,
     ) -> None:
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         self.ip: str = ip
         self.login_time: datetime = login_time or now_utc
         self.last_activity: datetime = last_activity or self.login_time
 
     def touch(self) -> None:
         """Оновлення часу останньої активності."""
-        self.last_activity = datetime.now(timezone.utc)
+        self.last_activity = datetime.now(UTC)
 
     def is_active(self, timeout_sec: int) -> bool:
         """Перевірка активності сесії через об'єкт timedelta."""
         if timeout_sec <= 0:
             raise ValueError("timeout_sec повинен бути додатним числом.")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return (now - self.last_activity) < timedelta(seconds=timeout_sec)
 
 
@@ -155,7 +156,7 @@ class AuditLog:
     def add_log(self, username: str, action: str) -> None:
         self._logs.append(
             AuditRecord(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 username=username,
                 action=action,
             )
@@ -190,7 +191,7 @@ class UserAccount:
             return False
 
         # Успішний вхід: створюємо сесію, оновлюємо активність і пишемо лог
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self._session = Session(ip=ip, login_time=now, last_activity=now)
         self._session.touch()
         self._audit_log.add_log(username, "login_success")
