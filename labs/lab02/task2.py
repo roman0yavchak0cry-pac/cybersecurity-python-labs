@@ -122,9 +122,13 @@ def run_scanner(
 ) -> None:
     """Головна функція запуску сканування та виводу звіту в консоль."""
     log_level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(level=log_level, format="[%(levelname)s] %(message)s", force=True)
+    logging.basicConfig(
+        level=log_level, format="[%(levelname)s] %(message)s", force=True
+    )
 
-    logger.info("Starting service availability scan from target list %s...", targets_path)
+    logger.info(
+        "Starting service availability scan from target list %s...", targets_path
+    )
 
     try:
         targets = load_targets(targets_path)
@@ -133,7 +137,9 @@ def run_scanner(
         sys.exit(1)
 
     results: list[ScanResult] = []
-    print(f"{'Target Host':<24} {'Port':<6} {'Service':<8} {'Status':<8} {'Response Time':<14} Notes")
+    print(
+        f"{'Target Host':<24} {'Port':<6} {'Service':<8} {'Status':<8} {'Response Time':<14} Notes"
+    )
     print("-" * 75)
 
     for item in targets:
@@ -156,7 +162,9 @@ def run_scanner(
             notes=notes,
         )
         results.append(res)
-        print(f"{res.host:<24} {res.port:<6} {res.service:<8} {res.status:<8} {res.response_time:<14} {res.notes}")
+        print(
+            f"{res.host:<24} {res.port:<6} {res.service:<8} {res.status:<8} {res.response_time:<14} {res.notes}"
+        )
 
     # Підрахунок статистики за допомогою collections.Counter
     total = len(results)

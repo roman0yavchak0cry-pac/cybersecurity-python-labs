@@ -54,7 +54,9 @@ def run_demo() -> None:
     sess = account["session"]
     if sess:
         sess.last_activity = sess.last_activity.replace(year=2020)
-    print(f"  Перевірка після застаріння: is_authenticated = {account.is_authenticated()}")
+    print(
+        f"  Перевірка після застаріння: is_authenticated = {account.is_authenticated()}"
+    )
 
     # 5. Повторний логін та вихід
     account.login("sec_analyst", "SecureStudentPass2026!", "10.0.0.12")
@@ -75,29 +77,41 @@ def run_demo() -> None:
         secret = account["__password_hash"]
         print(secret)
     except KeyError as e:
-        print(f"  [Захист приватних даних]: Спроба отримати хеш повернула KeyError: {e}")
+        print(
+            f"  [Захист приватних даних]: Спроба отримати хеш повернула KeyError: {e}"
+        )
 
     print("\n=== Демонстрація успішно завершена ===")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Центральна точка входу до Лабораторної роботи №2")
+    parser = argparse.ArgumentParser(
+        description="Центральна точка входу до Лабораторної роботи №2"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Підкоманда demo (Завдання 1)
     subparsers.add_parser("demo", help="Запустити демонстрацію Завдання 1 (ООП)")
 
     # Підкоманда analyze (Завдання 2)
-    analyze_parser = subparsers.add_parser("analyze", help="Запустити CLI-утиліту Варіанту №5")
-    analyze_parser.add_argument("--targets", type=Path, required=True, help="Шлях до файлу цілей")
-    analyze_parser.add_argument("--timeout", type=float, default=2.0, help="Таймаут (сек)")
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="Запустити CLI-утиліту Варіанту №5"
+    )
+    analyze_parser.add_argument(
+        "--targets", type=Path, required=True, help="Шлях до файлу цілей"
+    )
+    analyze_parser.add_argument(
+        "--timeout", type=float, default=2.0, help="Таймаут (сек)"
+    )
     analyze_parser.add_argument(
         "--out-csv",
         type=Path,
         default=Path("labs/lab02/data/scan_results.csv"),
         help="Шлях для збереження CSV-звіту",
     )
-    analyze_parser.add_argument("--verbose", action="store_true", help="Детальний вивід (DEBUG)")
+    analyze_parser.add_argument(
+        "--verbose", action="store_true", help="Детальний вивід (DEBUG)"
+    )
 
     args = parser.parse_args()
 

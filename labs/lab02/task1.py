@@ -94,8 +94,9 @@ class Admin(User):
     ) -> None:
         super().__init__(username=username, email=email, role="admin", active=active)
         # Уникаємо mutable default argument (множина копіюється або створюється порожня)
-        self.permissions: set[str] = set(permissions) if permissions is not None else set()
-        
+        self.permissions: set[str] = (
+            set(permissions) if permissions is not None else set()
+        )
 
     def grant_permission(self, permission: str) -> None:
         self.permissions.add(permission)
@@ -227,11 +228,15 @@ class UserAccount:
             self._user = value
         elif key == "session":
             if value is not None and not isinstance(value, Session):
-                raise TypeError("Значення для 'session' має бути екземпляром Session або None.")
+                raise TypeError(
+                    "Значення для 'session' має бути екземпляром Session або None."
+                )
             self._session = value
         elif key == "audit_log":
             if not isinstance(value, AuditLog):
-                raise TypeError("Значення для 'audit_log' має бути екземпляром AuditLog.")
+                raise TypeError(
+                    "Значення для 'audit_log' має бути екземпляром AuditLog."
+                )
             self._audit_log = value
         else:
             raise KeyError(f"Зміна поля '{key}' заборонена або ключ некоректний.")
